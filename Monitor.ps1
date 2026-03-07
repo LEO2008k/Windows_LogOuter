@@ -36,10 +36,18 @@ while ($true) {
     $macOk = $true
     $currentMac = ""
 
-    # 1. Ping (робимо 10 запитів, якщо більше 5 неуспішних - вважаємо що пінгу нема)
+    # Швидкий об'єкт для Ping
+    $pingSender = New-Object System.Net.NetworkInformation.Ping
+    
+    # 1. Ping (10 запитів, швидкий таймаут 1000мс = 1сек)
     $failedPings = 0
     for ($i = 0; $i -lt 10; $i++) {
-        if (-not (Test-Connection -ComputerName $config.TargetPingIP -Count 1 -Quiet -ErrorAction SilentlyContinue)) {
+        try {
+            $reply = $pingSender.Send($config.TargetPingIP, 1000)
+            if ($reply.Status -ne [System.Net.NetworkInformation.IPStatus]::Success) {
+                $failedPings++
+            }
+        } catch {
             $failedPings++
         }
     }
@@ -62,9 +70,14 @@ while ($true) {
     } catch { }
 
     if ($dnsResolved) {
-        # Якщо резолвиться, пінгуємо домен 10 разів
+        # Якщо резолвиться, пінгуємо домен (10 разів, швидкий пін)
         for ($j = 0; $j -lt 10; $j++) {
-            if (-not (Test-Connection -ComputerName $config.TestDomain -Count 1 -Quiet -ErrorAction SilentlyContinue)) {
+            try {
+                $replyDns = $pingSender.Send($config.TestDomain, 1000)
+                if ($replyDns.Status -ne [System.Net.NetworkInformation.IPStatus]::Success) {
+                    $failedDns++
+                }
+            } catch {
                 $failedDns++
             }
         }
@@ -81,17 +94,19 @@ while ($true) {
     }
 
     # 3. MAC
+    $currentMac = "00:00:00:00:00:00"
     if (![string]::IsNullOrEmpty($config.ExpectedGatewayMAC)) {
         $gateway = (Get-NetRoute -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue | Sort-Object RouteMetric | Select-Object -First 1).NextHop
         if ($gateway) {
             $neighbor = Get-NetNeighbor -IPAddress $gateway -ErrorAction SilentlyContinue | Select-Object -First 1
             if ($neighbor.LinkLayerAddress) {
                 $currentMac = $neighbor.LinkLayerAddress -replace '-', ':'
-                $expectedMac = $config.ExpectedGatewayMAC -replace '-', ':'
-                if ($currentMac.ToUpper() -ne $expectedMac.ToUpper()) {
-                    $macOk = $false
-                }
             }
+        }
+        
+        $expectedMac = $config.ExpectedGatewayMAC -replace '-', ':'
+        if ($currentMac.ToUpper() -ne $expectedMac.ToUpper()) {
+            $macOk = $false
         }
     }
 
