@@ -27,18 +27,30 @@ Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction Silent
 # Action will launch hidden powershell
 $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$scriptPath`""
 
-        # Trigger at Logon
-        if ($targetUser -eq "BUILTIN\Users" -or $targetUser -eq "Users") {
-            $trigger = New-ScheduledTaskTrigger -AtLogOn
-            $principal = New-ScheduledTaskPrincipal -GroupId "BUILTIN\Users" -RunLevel Highest
-            Write-Host "Створення завдання для ВСІХ користувачів..."
-        } else {
-            # Fix issue: Cannot map Account names and SIDs correctly by using UserId with domain\user format or LogonType
-            $trigger = New-ScheduledTaskTrigger -AtLogOn -User $targetUser
-            # Using Interactive logon type without explicitly passing SID often resolves the mapping mapping bug
-            $principal = New-ScheduledTaskPrincipal -UserId $targetUser -LogonType Interactive
-            Write-Host "Створення завдання для користувача: $targetUser ..."
+# Trigger at Logon
+if ($targetUser -eq "BUILTIN\Users" -or $targetUser -eq "Users") {
+    $trigger = New-ScheduledTaskTrigger -AtLogOn
+    $principal = New-ScheduledTaskPrincipal -GroupId "BUILTIN\Users" -RunLevel Highest
+    Write-Host "Створення завдання для ВСІХ користувачів..."
+} else {
+    # Resolve exact user SID/Name to avoid "No mapping between account names and security IDs" errors
+    $resolvedUser = $targetUser
+    try {
+        $nt = New-Object System.Security.Principal.NTAccount($targetUser)
+        $resolvedUser = $nt.Translate([System.Security.Principal.SecurityIdentifier]).Translate([System.Security.Principal.NTAccount]).Value
+    } catch {
+        try {
+            $nt = New-Object System.Security.Principal.NTAccount("$env:COMPUTERNAME\$targetUser")
+            $resolvedUser = $nt.Translate([System.Security.Principal.SecurityIdentifier]).Translate([System.Security.Principal.NTAccount]).Value
+        } catch {
+            Write-Warning "Увага! Користувача '$targetUser' не знайдено на комп'ютері. Можуть бути помилки."
         }
+    }
+    
+    $trigger = New-ScheduledTaskTrigger -AtLogOn -User $resolvedUser
+    $principal = New-ScheduledTaskPrincipal -UserId $resolvedUser -LogonType Interactive -RunLevel Highest
+    Write-Host "Створення завдання для користувача: $resolvedUser ..."
+}
         
         $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RunOnlyIfNetworkAvailable:$false -Hidden
 
