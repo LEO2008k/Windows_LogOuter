@@ -52,12 +52,33 @@ while ($true) {
         $pingLogText = "ОК"
     }
 
-    # 2. DNS
+    # 2. Ping доменного імені та перевірка DNS
+    $failedDns = 0
+    $dnsResolved = $false
     try {
         if (Resolve-DnsName -Name $config.TestDomain -ErrorAction SilentlyContinue) {
-            $dnsOk = $true
+            $dnsResolved = $true
         }
     } catch { }
+
+    if ($dnsResolved) {
+        # Якщо резолвиться, пінгуємо домен 10 разів
+        for ($j = 0; $j -lt 10; $j++) {
+            if (-not (Test-Connection -ComputerName $config.TestDomain -Count 1 -Quiet -ErrorAction SilentlyContinue)) {
+                $failedDns++
+            }
+        }
+        if ($failedDns -gt 5) {
+            $dnsOk = $false
+            $dnsLogText = "Втрат по домену: $failedDns/10"
+        } else {
+            $dnsOk = $true
+            $dnsLogText = "ОК"
+        }
+    } else {
+        $dnsOk = $false
+        $dnsLogText = "Помилка DNS: Не резолвиться"
+    }
 
     # 3. MAC
     if (![string]::IsNullOrEmpty($config.ExpectedGatewayMAC)) {
@@ -74,12 +95,12 @@ while ($true) {
         }
     }
 
-    # Condition
-    $conditionFailed = (-not $pingOk -and -not $dnsOk) -or (-not $macOk)
+    # Condition: вилогінюємо, якщо ДНС/домен не працює, АБО IP не пінгується, АБО MAC неправильний
+    $conditionFailed = (-not $dnsOk) -or (-not $pingOk) -or (-not $macOk)
 
     if ($conditionFailed) {
         if ($lastStatusOk) {
-            Write-Log "УВАГА! Зникло з'єднання або змінено MAC-адресу. (Ping: $pingLogText, DNS: $dnsOk, MAC: $currentMac). Початок відліку..."
+            Write-Log "УВАГА! Проблема з мережею або MAC. (IP Ping: $pingLogText, DNS/Domain: $dnsLogText, MAC: $currentMac). Початок відліку..."
         }
         $lastStatusOk = $false
         
