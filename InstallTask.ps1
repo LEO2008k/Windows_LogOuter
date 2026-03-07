@@ -27,19 +27,20 @@ Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction Silent
 # Action will launch hidden powershell
 $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$scriptPath`""
 
-# Trigger at Logon
-if ($targetUser -eq "BUILTIN\Users") {
-    $trigger = New-ScheduledTaskTrigger -AtLogOn
-    $principal = New-ScheduledTaskPrincipal -GroupId $targetUser -RunLevel Highest
-    Write-Host "Створення завдання для ВСІХ користувачів..."
-} else {
-    # If a specific user is provided
-    $trigger = New-ScheduledTaskTrigger -AtLogOn -User $targetUser
-    $principal = New-ScheduledTaskPrincipal -UserId $targetUser -LogonType Interactive -RunLevel Highest
-    Write-Host "Створення завдання для користувача: $targetUser ..."
-}
-
-$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RunOnlyIfNetworkAvailable:$false -Hidden
+        # Trigger at Logon
+        if ($targetUser -eq "BUILTIN\Users" -or $targetUser -eq "Users") {
+            $trigger = New-ScheduledTaskTrigger -AtLogOn
+            $principal = New-ScheduledTaskPrincipal -GroupId "BUILTIN\Users" -RunLevel Highest
+            Write-Host "Створення завдання для ВСІХ користувачів..."
+        } else {
+            # Fix issue: Cannot map Account names and SIDs correctly by using UserId with domain\user format or LogonType
+            $trigger = New-ScheduledTaskTrigger -AtLogOn -User $targetUser
+            # Using Interactive logon type without explicitly passing SID often resolves the mapping mapping bug
+            $principal = New-ScheduledTaskPrincipal -UserId $targetUser -LogonType Interactive
+            Write-Host "Створення завдання для користувача: $targetUser ..."
+        }
+        
+        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RunOnlyIfNetworkAvailable:$false -Hidden
 
 Register-ScheduledTask -Action $action -Trigger $trigger -Settings $settings -Principal $principal -TaskName $taskName -Description "Моніторинг Інтернету і MAC адреси" -Force
 
