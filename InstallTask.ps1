@@ -1,4 +1,4 @@
-$taskName = "WindowsLockerAndCheckerMonitor"
+﻿$taskName = "WindowsLockerAndCheckerMonitor"
 
 if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Warning "Помилка: Цей скрипт потрібно запускати від імені Адміністратора!"

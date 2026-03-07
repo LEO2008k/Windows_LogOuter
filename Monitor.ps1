@@ -1,4 +1,4 @@
-$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+﻿$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
 $configFile = Join-Path $scriptPath "config.json"
 $alertFormScript = Join-Path $scriptPath "ShowAlert.ps1"
 $logFile = Join-Path $scriptPath "LockerMonitor.log"
