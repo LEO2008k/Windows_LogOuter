@@ -1,0 +1,5 @@
+# Logs
+*.log
+
+# Sensitive or local config if needed (optional, keeping config.json tracked for default values)
+# config.json
