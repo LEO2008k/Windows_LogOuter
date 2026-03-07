@@ -6,7 +6,7 @@ if %errorLevel% NEQ 0 (
     exit /b
 )
 
-cd /d "%~dp0"
+pushd "%~dp0"
 
 echo =======================================================
 echo          Installing Windows Locker Monitor
