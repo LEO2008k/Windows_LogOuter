@@ -36,9 +36,20 @@ while ($true) {
     $macOk = $true
     $currentMac = ""
 
-    # 1. Ping
-    if (Test-Connection -ComputerName $config.TargetPingIP -Count 1 -Quiet -ErrorAction SilentlyContinue) {
+    # 1. Ping (робимо 10 запитів, якщо більше 5 неуспішних - вважаємо що пінгу нема)
+    $failedPings = 0
+    for ($i = 0; $i -lt 10; $i++) {
+        if (-not (Test-Connection -ComputerName $config.TargetPingIP -Count 1 -Quiet -ErrorAction SilentlyContinue)) {
+            $failedPings++
+        }
+    }
+    
+    if ($failedPings -gt 5) {
+        $pingOk = $false
+        $pingLogText = "Втрат: $failedPings/10"
+    } else {
         $pingOk = $true
+        $pingLogText = "ОК"
     }
 
     # 2. DNS
@@ -68,7 +79,7 @@ while ($true) {
 
     if ($conditionFailed) {
         if ($lastStatusOk) {
-            Write-Log "УВАГА! Зникло з'єднання або змінено MAC-адресу. (Ping: $pingOk, DNS: $dnsOk, MAC: $currentMac). Початок відліку..."
+            Write-Log "УВАГА! Зникло з'єднання або змінено MAC-адресу. (Ping: $pingLogText, DNS: $dnsOk, MAC: $currentMac). Початок відліку..."
         }
         $lastStatusOk = $false
         
