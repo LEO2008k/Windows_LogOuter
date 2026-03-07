@@ -3,7 +3,7 @@
     "TestDomain": "google.com",
     "ExpectedGatewayMAC": "68:3a:1e:3a:ea:f1",
     "TargetUsername": "Student",
-    "CheckIntervalSeconds": 30,
-    "TriggerDelaySeconds": 180,
-    "PopupTimerSeconds": 120
+    "CheckIntervalSeconds": 10,
+    "TriggerDelaySeconds": 5,
+    "PopupTimerSeconds": 180
 }

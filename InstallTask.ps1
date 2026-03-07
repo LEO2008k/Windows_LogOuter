@@ -24,8 +24,9 @@ if (Test-Path $configFile) {
 Write-Host "Видалення старого завдання (якщо існує)..."
 Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
 
-# Action will launch hidden powershell
-$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$scriptPath`""
+# Action will launch VBScript which runs PowerShell completely hidden in background
+$vbsPath = Join-Path $PSScriptRoot "Launcher.vbs"
+$action = New-ScheduledTaskAction -Execute "wscript.exe" -Argument "`"$vbsPath`""
 
 # Trigger at Logon
 if ($targetUser -eq "BUILTIN\Users" -or $targetUser -eq "Users") {
