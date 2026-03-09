@@ -113,6 +113,8 @@ while ($true) {
     # Condition: вилогінюємо, якщо ДНС/домен не працює, АБО IP не пінгується, АБО MAC неправильний
     $conditionFailed = (-not $dnsOk) -or (-not $pingOk) -or (-not $macOk)
 
+    $targetLogoffTimeFile = Join-Path $env:TEMP "WindowsLockerEndTimer.txt"
+
     if ($conditionFailed) {
         if ($lastStatusOk) {
             Write-Log "УВАГА! Проблема з мережею або MAC. (IP Ping: $pingLogText, DNS/Domain: $dnsLogText, MAC: $currentMac). Початок відліку..."
@@ -121,18 +123,33 @@ while ($true) {
         
         $failureTimeSeconds += $interval
         if ($failureTimeSeconds -ge $config.TriggerDelaySeconds) {
+            # Перевіряємо, чи запущене вікно
             $alertRunning = Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe' OR Name = 'pwsh.exe'" | Where-Object { $_.CommandLine -match "ShowAlert.ps1" }
             
             if (-not $alertRunning) {
-                Write-Log "ЧАС ВИЙШОВ ($failureTimeSeconds сек). Запуск спливаючого вікна ShowAlert.ps1..."
-                Start-Process "powershell.exe" -ArgumentList "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$alertFormScript`""
+                Write-Log "Запуск спливаючого вікна ShowAlert.ps1 (приховано через VBS)..."
+                $vbsLauncher = Join-Path $scriptPath "Launcher.vbs"
+                Start-Process "wscript.exe" -ArgumentList "`"$vbsLauncher`" `"$alertFormScript`""
             }
-            # Скидаємо лічильник
-            $failureTimeSeconds = 0
+            
+            # Підстраховка: сам Monitor перевіряє час, щоб користувач не зміг обдурити систему закриттям UI
+            if (Test-Path $targetLogoffTimeFile) {
+                try {
+                    $expectedLogoffStr = Get-Content $targetLogoffTimeFile
+                    $logoffTime = [DateTime]::Parse($expectedLogoffStr)
+                    if ((Get-Date) -ge $logoffTime) {
+                        Write-Log "Час сплинув (перевірка з Monitor.ps1). Безумовне виконання команди logoff..."
+                        Start-Process "logoff.exe" -NoNewWindow
+                        Remove-Item $targetLogoffTimeFile -ErrorAction SilentlyContinue
+                    }
+                } catch { }
+            }
         }
     } else {
         if (-not $lastStatusOk) {
-             Write-Log "З'єднання відновлено або MAC-адреса правильна. Зроблено відкат лічильника."
+             Write-Log "З'єднання відновлено або MAC-адреса правильна. Зроблено відкат лічильника. Закриття вікон..."
+             if (Test-Path $targetLogoffTimeFile) { Remove-Item $targetLogoffTimeFile -ErrorAction SilentlyContinue }
+             Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe' OR Name = 'pwsh.exe'" | Where-Object { $_.CommandLine -match "ShowAlert.ps1" } | Invoke-CimMethod -MethodName Terminate
         }
         $lastStatusOk = $true
         $failureTimeSeconds = 0

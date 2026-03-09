@@ -19,10 +19,27 @@ if (Test-Path $configFile) {
     exit
 }
 
-$timeLeft = $config.PopupTimerSeconds
-if ($timeLeft -le 0) { $timeLeft = 120 }
+$targetLogoffTimeFile = Join-Path $env:TEMP "WindowsLockerEndTimer.txt"
 
-Write-Log "Вікно попередження відкрито. Таймер: $timeLeft сек."
+if (Test-Path $targetLogoffTimeFile) {
+    try {
+        $expectedLogoffStr = Get-Content $targetLogoffTimeFile
+        $script:logoffTime = [DateTime]::Parse($expectedLogoffStr)
+        $duration = $script:logoffTime - (Get-Date)
+        $script:timeLeft = [math]::Max(0, [int]$duration.TotalSeconds)
+    } catch {
+        $script:timeLeft = $config.PopupTimerSeconds
+        if ($script:timeLeft -le 0) { $script:timeLeft = 120 }
+        $script:logoffTime = (Get-Date).AddSeconds($script:timeLeft)
+    }
+} else {
+    $script:timeLeft = $config.PopupTimerSeconds
+    if ($script:timeLeft -le 0) { $script:timeLeft = 120 }
+    $script:logoffTime = (Get-Date).AddSeconds($script:timeLeft)
+    Set-Content -Path $targetLogoffTimeFile -Value $script:logoffTime.ToString("o")
+}
+
+Write-Log "Вікно попередження відкрито. Таймер: $script:timeLeft сек."
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "СИРЕНА - ВТРАТА ІНТЕРНЕТУ"
@@ -52,7 +69,7 @@ $lblWarn.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
 $form.Controls.Add($lblWarn)
 
 $lblTimer = New-Object System.Windows.Forms.Label
-$lblTimer.Text = "Залишилось: $timeLeft с"
+$lblTimer.Text = "Залишилось: $script:timeLeft с"
 $lblTimer.ForeColor = [System.Drawing.Color]::Yellow
 $lblTimer.Font = New-Object System.Drawing.Font("Segoe UI", 24, [System.Drawing.FontStyle]::Bold)
 $lblTimer.Location = New-Object System.Drawing.Point(20, 100)
@@ -77,7 +94,8 @@ $form.Controls.Add($btnCancel)
 $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = 1000
 $timer.Add_Tick({
-    $script:timeLeft--
+    $duration = $script:logoffTime - (Get-Date)
+    $script:timeLeft = [math]::Max(0, [int]$duration.TotalSeconds)
     $lblTimer.Text = "Залишилось: $script:timeLeft с"
     if ($script:timeLeft -le 0) {
         $timer.Stop()
