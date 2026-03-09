@@ -32,6 +32,16 @@ $form.TopMost = $true
 $form.ControlBox = $false
 $form.BackColor = [System.Drawing.Color]::DarkRed
 
+$script:allowClose = $false
+
+# Забороняємо закриття через Alt+F4
+$form.Add_FormClosing({
+    if (-not $script:allowClose) {
+        $_.Cancel = $true
+        Write-Log "Спроба махлювання: користувач намагався закрити вікно (Alt+F4/TaskBar). Відмовлено."
+    }
+})
+
 $lblWarn = New-Object System.Windows.Forms.Label
 $lblWarn.Text = "Увага! Відсутнє підключення до Інтернету або виявлено підміну роутера. Ви будете розлогінені автоматично."
 $lblWarn.ForeColor = [System.Drawing.Color]::White
@@ -59,6 +69,7 @@ $btnCancel.BackColor = [System.Drawing.Color]::White
 $btnCancel.Add_Click({ 
     Write-Log "Користувач натиснув 'ВИЙТИ ЗАРАЗ'. Виконання команди logoff..."
     Start-Process "logoff.exe" -NoNewWindow
+    $script:allowClose = $true
     $form.Close() 
 })
 $form.Controls.Add($btnCancel)
@@ -72,6 +83,7 @@ $timer.Add_Tick({
         $timer.Stop()
         Write-Log "Час сплинув. Виконання команди logoff..."
         Start-Process "logoff.exe" -NoNewWindow
+        $script:allowClose = $true
         $form.Close()
     }
 })
