@@ -51,13 +51,14 @@ $lblTimer.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
 $form.Controls.Add($lblTimer)
 
 $btnCancel = New-Object System.Windows.Forms.Button
-$btnCancel.Text = "СКАСУВАТИ"
+$btnCancel.Text = "ВИЙТИ ЗАРАЗ"
 $btnCancel.Font = New-Object System.Drawing.Font("Segoe UI", 16, [System.Drawing.FontStyle]::Bold)
 $btnCancel.Location = New-Object System.Drawing.Point(150, 180)
 $btnCancel.Size = New-Object System.Drawing.Size(200, 60)
 $btnCancel.BackColor = [System.Drawing.Color]::White
 $btnCancel.Add_Click({ 
-    Write-Log "Користувач натиснув 'СКАСУВАТИ'. Розлогінення відмінено."
+    Write-Log "Користувач натиснув 'ВИЙТИ ЗАРАЗ'. Виконання команди logoff..."
+    Start-Process "logoff.exe" -NoNewWindow
     $form.Close() 
 })
 $form.Controls.Add($btnCancel)
