@@ -84,8 +84,8 @@ $btnCancel.Location = New-Object System.Drawing.Point(150, 180)
 $btnCancel.Size = New-Object System.Drawing.Size(200, 60)
 $btnCancel.BackColor = [System.Drawing.Color]::White
 $btnCancel.Add_Click({ 
-    Write-Log "Користувач натиснув 'ВИЙТИ ЗАРАЗ'. Виконання команди logoff..."
-    Start-Process "logoff.exe" -NoNewWindow
+    Write-Log "Користувач натиснув 'ВИЙТИ ЗАРАЗ'. Примусове виконання logoff..."
+    (Get-WmiObject Win32_OperatingSystem).Win32Shutdown(4)
     $script:allowClose = $true
     $form.Close() 
 })
@@ -99,8 +99,8 @@ $timer.Add_Tick({
     $lblTimer.Text = "Залишилось: $script:timeLeft с"
     if ($script:timeLeft -le 0) {
         $timer.Stop()
-        Write-Log "Час сплинув. Виконання команди logoff..."
-        Start-Process "logoff.exe" -NoNewWindow
+        Write-Log "Час сплинув. Примусове (Forced) виконання logoff..."
+        (Get-WmiObject Win32_OperatingSystem).Win32Shutdown(4)
         $script:allowClose = $true
         $form.Close()
     }

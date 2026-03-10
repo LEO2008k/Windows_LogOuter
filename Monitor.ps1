@@ -39,11 +39,11 @@ while ($true) {
     # Швидкий об'єкт для Ping
     $pingSender = New-Object System.Net.NetworkInformation.Ping
     
-    # 1. Ping (10 запитів, швидкий таймаут 1000мс = 1сек)
+    # 1. Ping (3 запити, швидкий таймаут 500мс)
     $failedPings = 0
-    for ($i = 0; $i -lt 10; $i++) {
+    for ($i = 0; $i -lt 3; $i++) {
         try {
-            $reply = $pingSender.Send($config.TargetPingIP, 1000)
+            $reply = $pingSender.Send($config.TargetPingIP, 500)
             if ($reply.Status -ne [System.Net.NetworkInformation.IPStatus]::Success) {
                 $failedPings++
             }
@@ -52,9 +52,9 @@ while ($true) {
         }
     }
     
-    if ($failedPings -gt 5) {
+    if ($failedPings -gt 1) {
         $pingOk = $false
-        $pingLogText = "Втрат: $failedPings/10"
+        $pingLogText = "Втрат: $failedPings/3"
     } else {
         $pingOk = $true
         $pingLogText = "ОК"
@@ -64,16 +64,17 @@ while ($true) {
     $failedDns = 0
     $dnsResolved = $false
     try {
-        if (Resolve-DnsName -Name $config.TestDomain -ErrorAction SilentlyContinue) {
+        $ips = [System.Net.Dns]::GetHostAddresses($config.TestDomain)
+        if ($ips.Count -gt 0) {
             $dnsResolved = $true
         }
     } catch { }
 
     if ($dnsResolved) {
-        # Якщо резолвиться, пінгуємо домен (10 разів, швидкий пін)
-        for ($j = 0; $j -lt 10; $j++) {
+        # Якщо резолвиться, пінгуємо домен (3 рази, швидкий пін)
+        for ($j = 0; $j -lt 3; $j++) {
             try {
-                $replyDns = $pingSender.Send($config.TestDomain, 1000)
+                $replyDns = $pingSender.Send($config.TestDomain, 500)
                 if ($replyDns.Status -ne [System.Net.NetworkInformation.IPStatus]::Success) {
                     $failedDns++
                 }
@@ -81,9 +82,9 @@ while ($true) {
                 $failedDns++
             }
         }
-        if ($failedDns -gt 5) {
+        if ($failedDns -gt 1) {
             $dnsOk = $false
-            $dnsLogText = "Втрат по домену: $failedDns/10"
+            $dnsLogText = "Втрат по домену: $failedDns/3"
         } else {
             $dnsOk = $true
             $dnsLogText = "ОК"
@@ -138,8 +139,8 @@ while ($true) {
                     $expectedLogoffStr = Get-Content $targetLogoffTimeFile
                     $logoffTime = [DateTime]::Parse($expectedLogoffStr)
                     if ((Get-Date) -ge $logoffTime) {
-                        Write-Log "Час сплинув (перевірка з Monitor.ps1). Безумовне виконання команди logoff..."
-                        Start-Process "logoff.exe" -NoNewWindow
+                        Write-Log "Час сплинув (перевірка з Monitor.ps1). Примусове (Forced) виконання logoff..."
+                        (Get-WmiObject Win32_OperatingSystem).Win32Shutdown(4)
                         Remove-Item $targetLogoffTimeFile -ErrorAction SilentlyContinue
                     }
                 } catch { }
